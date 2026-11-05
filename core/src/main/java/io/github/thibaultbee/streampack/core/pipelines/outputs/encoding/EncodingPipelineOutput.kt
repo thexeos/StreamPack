@@ -793,6 +793,16 @@ internal class EncodingPipelineOutput(
         stopStreamElements()
 
         _isStreamingFlow.emit(false)
+
+        // Not before: the new input surface would be drawn into while streaming, and the codec
+        // would encode those frames, with their old timestamps, first in the next session.
+        if (videoEncoderInternal != null) {
+            try {
+                resetVideoEncoder()
+            } catch (t: Throwable) {
+                Logger.w(TAG, "Can't reset video encoder: ${t.message}")
+            }
+        }
     }
 
     private suspend fun resetVideoEncoder() {
@@ -856,12 +866,6 @@ internal class EncodingPipelineOutput(
 
                 // Flush remaining frames
                 videoEncoderListener.outputChannel.flush()
-
-                try {
-                    resetVideoEncoder()
-                } catch (t: Throwable) {
-                    Logger.w(TAG, "Can't reset video encoder: ${t.message}")
-                }
             }
         }
 

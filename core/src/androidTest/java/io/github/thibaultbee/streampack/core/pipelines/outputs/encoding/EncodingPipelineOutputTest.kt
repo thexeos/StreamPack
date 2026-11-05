@@ -38,10 +38,14 @@ import io.github.thibaultbee.streampack.core.pipelines.outputs.releaseBlocking
 import io.github.thibaultbee.streampack.core.utils.FakeRawFrame
 import io.github.thibaultbee.streampack.core.utils.InternalStreamPackApi
 import junit.framework.TestCase.assertTrue
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -266,6 +270,28 @@ class EncodingPipelineOutputTest {
         val secondSurface = output.surfaceFlow.filterNotNull().first()
         assertNotNull(secondSurface)
         assertNotEquals(firstSurface, secondSurface)
+    }
+
+    @Test
+    fun testStopStreamReplacesSurfaceOnlyOnceStopped() = runBlocking {
+        output = createOutput(endpointFactory = DummyEndpointFactory(), withAudio = false)
+        output.setVideoCodecConfig(VideoCodecConfig())
+        val firstSurface = output.surfaceFlow.value
+        output.startStream(descriptor)
+
+        // Unconfined: read isStreaming as the surface is emitted, as a processor drawing into it would.
+        val streamingWhenReplaced = CompletableDeferred<Boolean>()
+        val collector = launch(Dispatchers.Unconfined) {
+            output.surfaceFlow.filterNotNull().first { it != firstSurface }
+            streamingWhenReplaced.complete(output.isStreaming)
+        }
+        output.stopStream()
+
+        assertFalse(
+            "streaming when the new surface was emitted",
+            withTimeout(5_000) { streamingWhenReplaced.await() }
+        )
+        collector.cancel()
     }
 
     @Test
