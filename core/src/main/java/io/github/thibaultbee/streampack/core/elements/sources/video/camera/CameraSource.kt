@@ -31,6 +31,8 @@ import io.github.thibaultbee.streampack.core.elements.sources.video.camera.contr
 import io.github.thibaultbee.streampack.core.elements.sources.video.camera.extensions.cameraManager
 import io.github.thibaultbee.streampack.core.elements.sources.video.camera.extensions.cameras
 import io.github.thibaultbee.streampack.core.elements.sources.video.camera.extensions.isFpsSupported
+import io.github.thibaultbee.streampack.core.elements.sources.video.camera.sessioncompat.CameraCaptureSessionCompatBuilder
+import io.github.thibaultbee.streampack.core.elements.sources.video.camera.sessioncompat.ICameraCaptureSessionCompat
 import io.github.thibaultbee.streampack.core.elements.sources.video.camera.utils.CameraDispatcherProvider
 import io.github.thibaultbee.streampack.core.elements.sources.video.camera.utils.CameraSizes
 import io.github.thibaultbee.streampack.core.elements.sources.video.camera.utils.CameraSurface
@@ -56,6 +58,9 @@ internal class CameraSource(
     private val context: Context,
     override val cameraId: String,
     dispatcherProvider: CameraDispatcherProvider,
+    sessionCompat: ICameraCaptureSessionCompat = CameraCaptureSessionCompatBuilder.build(
+        dispatcherProvider
+    ),
 ) : ICameraSourceInternal, ICameraSource, AbstractPreviewableSource() {
     private val defaultDispatcher = dispatcherProvider.default
     private val coroutineScope = CoroutineScope(defaultDispatcher)
@@ -70,7 +75,14 @@ internal class CameraSource(
         cameraId,
         onCaptureRequestBuilder = {
             defaultCaptureRequest(this)
-        }
+        },
+        hasCameraPermission = {
+            ActivityCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        },
+        sessionCompat = sessionCompat
     )
 
     override val settings by lazy {
@@ -98,6 +110,8 @@ internal class CameraSource(
     private val _isPreviewingFlow = MutableStateFlow(false)
     override val isPreviewingFlow = _isPreviewingFlow.asStateFlow()
 
+    override val isInterruptedFlow = controller.isInterruptedFlow
+
     private val streamMutex = Mutex()
 
     init {
@@ -110,7 +124,8 @@ internal class CameraSource(
 
         coroutineScope.launch {
             controller.isActiveFlow.collect { isAvailable ->
-                if (!isAvailable) {
+                // An interrupted camera keeps streaming and previewing: it reopens on its own.
+                if (!isAvailable && !controller.isInterruptedFlow.value) {
                     _isStreamingFlow.emit(false)
                     _isPreviewingFlow.emit(false)
                 }
@@ -252,6 +267,10 @@ internal class CameraSource(
         } finally {
             _isStreamingFlow.emit(false)
         }
+    }
+
+    override fun retryIfInterrupted() {
+        controller.retryIfInterrupted()
     }
 
     override suspend fun release() {

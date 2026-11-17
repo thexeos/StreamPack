@@ -19,6 +19,7 @@ import io.github.thibaultbee.streampack.core.elements.sources.video.IPreviewable
 import io.github.thibaultbee.streampack.core.elements.sources.video.IVideoSource
 import io.github.thibaultbee.streampack.core.elements.sources.video.IVideoSourceInternal
 import io.github.thibaultbee.streampack.core.utils.InternalStreamPackApi
+import kotlinx.coroutines.flow.StateFlow
 
 @SubclassOptInRequired(InternalStreamPackApi::class)
 interface ICameraSource : IVideoSource, IPreviewableSource {
@@ -31,6 +32,18 @@ interface ICameraSource : IVideoSource, IPreviewableSource {
      * The camera settings (auto-exposure, auto-focus, etc.).
      */
     val settings: CameraSettings
+
+    /**
+     * Whether another client or the system holds the camera. The source keeps streaming and
+     * previewing, without frames, and reopens the camera when it is available again.
+     */
+    val isInterruptedFlow: StateFlow<Boolean>
+
+    /**
+     * Reopens an interrupted camera now (for example when the app comes back to the foreground,
+     * where no availability callback comes). Does nothing when the camera is not interrupted.
+     */
+    fun retryIfInterrupted()
 }
 
 @SubclassOptInRequired(InternalStreamPackApi::class)

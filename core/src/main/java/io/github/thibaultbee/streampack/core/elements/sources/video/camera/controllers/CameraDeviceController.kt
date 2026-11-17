@@ -53,6 +53,22 @@ internal class CameraDeviceController private constructor(
     val isClosed: Boolean
         get() = isClosedFlow.value
 
+    @Volatile
+    private var closeRequested = false
+
+    /**
+     * Whether the device closed without [close]: another client or the system took it.
+     */
+    val isLost: Boolean
+        get() = isClosed && !closeRequested
+
+    /**
+     * Whether the device was lost to onDisconnected (another client, policy or removal) rather than
+     * to an error.
+     */
+    val isDisconnected: Boolean
+        get() = isLost && throwableFlow.value == null
+
     val id = cameraDevice.id
 
     fun createCaptureRequestBuilder(template: Int = CameraDevice.TEMPLATE_RECORD): CaptureRequestWithTargetsBuilder {
@@ -101,6 +117,7 @@ internal class CameraDeviceController private constructor(
                 Logger.w(TAG, "Camera $id already closed")
                 return@withLock
             }
+            closeRequested = true
             cameraDevice.close()
             isClosedFlow.first { it }
             Logger.d(TAG, "Camera $id closed")

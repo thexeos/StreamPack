@@ -85,6 +85,13 @@ internal class CameraHandlerCaptureSessionCompat(dispatcherProvider: CameraDispa
         return captureSession.captureBurst(captureRequests, callback, handler)
     }
 
+    override fun registerAvailabilityCallback(
+        manager: CameraManager,
+        callback: CameraManager.AvailabilityCallback
+    ) {
+        manager.registerAvailabilityCallback(callback, handler)
+    }
+
     override fun release() {
         handlerExecutor.quit()
     }

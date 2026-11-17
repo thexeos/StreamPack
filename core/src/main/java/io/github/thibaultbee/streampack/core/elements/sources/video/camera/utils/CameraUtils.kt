@@ -76,10 +76,11 @@ internal object CameraUtils {
                 if (continuation.isActive) {
                     continuation.resumeWithException(exception)
                 }
+                // Before the close: a closed device without a throwable reads as disconnected.
+                throwableFlow.tryEmit(exception)
                 isClosedFlow.tryEmit(true)
                 Logger.e(TAG, "Camera ${camera.id} is in error $error")
                 camera.close()
-                throwableFlow.tryEmit(exception)
             }
 
             override fun onClosed(camera: CameraDevice) {
@@ -133,6 +134,9 @@ internal object CameraUtils {
                     TAG,
                     "Camera capture session closed for camera $cameraId and outputs $outputs"
                 )
+                if (continuation.isActive) {
+                    continuation.resumeWithException(CameraException("Camera session closed while configuring"))
+                }
             }
         }
 

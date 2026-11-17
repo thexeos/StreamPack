@@ -91,6 +91,28 @@ internal interface ICameraCaptureSessionCompat {
     ): Int
 
     /**
+     * Registers a camera availability callback, delivered like the camera callbacks.
+     *
+     * @param manager the [CameraManager]
+     * @param callback an implementation of [CameraManager.AvailabilityCallback]
+     */
+    fun registerAvailabilityCallback(
+        manager: CameraManager, callback: CameraManager.AvailabilityCallback
+    )
+
+    /**
+     * Unregisters a callback registered with [registerAvailabilityCallback].
+     *
+     * @param manager the [CameraManager]
+     * @param callback the registered [CameraManager.AvailabilityCallback]
+     */
+    fun unregisterAvailabilityCallback(
+        manager: CameraManager, callback: CameraManager.AvailabilityCallback
+    ) {
+        manager.unregisterAvailabilityCallback(callback)
+    }
+
+    /**
      * Release internal object.
      */
     fun release()

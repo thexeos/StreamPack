@@ -97,6 +97,14 @@ internal class CameraExecutorCaptureSessionCompat(dispatcherProvider: CameraDisp
         return captureSession.captureBurstRequests(captureRequests, executor, callback)
     }
 
+    @RequiresApi(Build.VERSION_CODES.P)
+    override fun registerAvailabilityCallback(
+        manager: CameraManager,
+        callback: CameraManager.AvailabilityCallback
+    ) {
+        manager.registerAvailabilityCallback(executor, callback)
+    }
+
     override fun release() {
         // Potential source of java.util.concurrent.RejectedExecutionException
         //executor.shutdown()
